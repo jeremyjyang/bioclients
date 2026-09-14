@@ -30,7 +30,7 @@ numpy==2.0.2
 packaging==26.3
 pandas==2.3.3
 pansi==2024.11.0
-pillow==11.3.0
+pillow==12.3.0
 psycopg2-binary==2.9.12
 py2neo==2021.2.4
 Pygments==2.21.0
