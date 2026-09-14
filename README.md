@@ -42,7 +42,7 @@ python3 -m build
 ## Dependencies
 
 * Python 3.10+
-* Python packages: `pandas`, `requests`, `yaml`, `psycopg2`, `tqdm`, etc. (See [conda/environment.yml](conda/environment.yml)).
+* Python packages: `pandas`, `requests`, `yaml`, `psycopg2`, `tqdm`, etc.
 
 ## Modules
 
@@ -76,33 +76,14 @@ of SQL and relational databases. Transforming JSON to TSV, as these
 clients generally do, projects data objects to tables useful for many
 applications (e.g. machine learning).
 
-## Conda environment
 
-bioclients depends on numerous Python packages.  (See [conda/environment.yml](conda/environment.yml)).
-The following commands create and activate a Conda environment `bioclients`:
-
-```
-$ conda env create -f conda/environment.yml
-```
-If that fails, try:
-```
-$ conda create -n bioclients -c conda-forge pandas requests pyyaml tqdm psycopg2 numpy scipy scikit-learn matplotlib
-```
-then:
-```
-$ conda activate bioclients
-(bioclients) $ pip install bioclients
-```
-and install additional packages as needed via `pip`, e.g.:
-```
-(bioclients) $ pip install sqlalchemy
-(bioclients) $ pip install pyquery
-(bioclients) $ pip install mygene
-(bioclients) $ pip install click
-(bioclients) $ pip install PyMuPDF
-(bioclients) $ pip install py2neo
-```
-
-## Venv, etc.
+## Venv environment
 
 It may not be necessary or advantageous to configure an environment for all of bioclients functionality. Specific modules may be supported with `venv` environments with required dependencies. Module documentation should indicate needed package dependencies.
+
+Dependencies include: sqlalchemy, pyquery, mygene, click, PyMuPDF, py2neo
+
+ 1. `mkdir venv`
+ 1. `python3 -m venv venv`
+ 1. `source venv/bin/activate`
+ 1. `pip -install -r pip_requirements.txt`
