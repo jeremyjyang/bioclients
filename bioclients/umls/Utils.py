@@ -22,14 +22,11 @@ https://utslogin.nlm.nih.gov
 https://www.nlm.nih.gov/research/umls/knowledge_sources/metathesaurus/release/abbreviations.html
 """
 ###
-import sys,os,re,yaml,json,urllib.parse,csv,logging,requests,time
+import sys,os,re,json,urllib.parse,logging,requests,time
 import pandas as pd
 from functools import total_ordering
 #
-from lxml import etree
 from pyquery import PyQuery
-#
-from ..util import rest
 #
 ###
 API_HOST='uts-ws.nlm.nih.gov'
@@ -70,22 +67,6 @@ class SourceList:
   def __init__(self):
     self.sources=[];
 
-  def initFromFile(self, sfile):
-    fin = open(sfile)
-    if not fin:
-      logging.error(f'Could not open {sfile}')
-      return
-    csvReader = csv.reader(fin, delimiter='\t', quotechar='"')
-    row = csvReader.next() #ignore header
-    while True:
-      try:
-        row = csvReader.next()
-      except:
-        break
-      self.sources.append(tuple(row))
-    self.sources.sort()
-    fin.close()
-
   def initFromApi(self, base_url, ver, auth):
     url = (f'{base_url}/metadata/{ver}/sources')
     tgt = auth.gettgt()
@@ -101,6 +82,23 @@ class SourceList:
         row.append(source[tag] if tag in source else '')
       self.sources.append(tuple(row))
     self.sources.sort()
+
+  def initFromFile(self, sfile):
+    import csv
+    fin = open(sfile)
+    if not fin:
+      logging.error(f'Could not open {sfile}')
+      return
+    csvReader = csv.reader(fin, delimiter='\t', quotechar='"')
+    row = csvReader.next() #ignore header
+    while True:
+      try:
+        row = csvReader.next()
+      except:
+        break
+      self.sources.append(tuple(row))
+    self.sources.sort()
+    fin.close()
 
   def has_src(self,_src):
     for abbr,name,ver in self.sources:
@@ -164,15 +162,6 @@ def UmlsApiGet(url, auth, tgt, params={}, tries=10, sleep=1):
       time.sleep(sleep)
       continue
   return None
-
-#############################################################################
-def ReadParamFile(fparam):
-  params={};
-  with open(fparam, 'r') as fh:
-    for param in yaml.load_all(fh, Loader=yaml.BaseLoader):
-      for k,v in param.items():
-        params[k] = v
-  return params
 
 #############################################################################
 def XrefConcept(src, ids, skip, nmax, auth, ver=API_VERSION, base_url=API_BASE_URL, fout=None):
@@ -422,23 +411,22 @@ See https://documentation.uts.nlm.nih.gov/rest/search/
     response.encoding = 'utf-8'
     items = json.loads(response.text)
     #logging.debug(json.dumps(items, indent=4))
-    result = items['result']
-    classType = result['classType']
-    pageSize = items["pageSize"]
-    pageNumber = items["pageNumber"]
+    result = items['result'] if 'result' in items else {}
+    pageSize = items['pageSize'] if 'pageSize' in items else None
+    pageNumber = items['pageNumber'] if 'pageNumber' in items else None
     ##No pageCount in search response.
-    items = result['results']
-    if not items:
+    classType = result['classType'] if 'classType' in result else None
+    results = result['results'] if 'results' in result else None
+    if not results:
       break
-    elif len(items)==1 and items[0]['name']=='NO RESULTS':
+    elif len(results)==1 and results[0]['name']=='NO RESULTS':
       break
     elif pageNumber!=pNum:
       logging.debug(f'pageNumber!=pNum ({pageNumber}!={pNum})')
       break
-    for item in items:
+    for item in results:
       n_item+=1
       if not tags: tags = list(item.keys())
-      vals = []
       cui = item['ui'] if 'ui' in item else None
       if 'rootSource' in item:
         if not item['rootSource'] in src_counts:

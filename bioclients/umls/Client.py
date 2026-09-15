@@ -42,9 +42,10 @@ UTS = UMLS Technology Services
  GENE|Genes & Molecular Sequences|T086|Nucleotide Sequence
 """
 ###
-import sys,os,argparse,re,yaml,json,csv,logging,requests,time
+import sys,os,argparse,re,logging,time
 #
 from .. import umls
+from ..util import yaml as util_yaml
 #
 #############################################################################
 if __name__=='__main__':
@@ -55,7 +56,10 @@ Example CUIs: C34488, C0018787, C0016644
 """
   parser = argparse.ArgumentParser(description='UMLS REST API client utility', epilog=EPILOG)
   ops = ['getCodes', 'getAtoms', 'getRelations', 'listSources', 'xrefConcept', 'search', 'searchByTUI']
-  searchTypes = ['exact', 'words', 'leftTruncation', 'rightTruncation', 'approximate', 'normalizedString']
+  searchTypes = ['exact', 'words', 'leftTruncation', 'rightTruncation',
+                 'normalizedString', 'normalizedWords',
+                 #'approximate', # DISCONTINUED?
+                 ]
   inputTypes = ['atom', 'code', 'sourceConcept', 'sourceDescriptor', 'sourceUi', 'tty']
   returnIdTypes = ['aui', 'concept', 'code', 'sourceConcept', 'sourceDescriptor', 'sourceUi']
   parser.add_argument("op", choices=ops, help='OPERATION (select one)')
@@ -63,7 +67,7 @@ Example CUIs: C34488, C0018787, C0016644
   parser.add_argument("--idfile", help="input IDs")
   parser.add_argument("--o", dest="ofile", help="output (TSV)")
   parser.add_argument("--idsrc", default="CUI", help="query ID source (default: CUI)")
-  parser.add_argument("--searchType", choices=searchTypes, default='words', help=f" [words]")
+  parser.add_argument("--searchType", choices=searchTypes, default='normalizedWords', help=f"[normalizedWords]")
   parser.add_argument("--inputType", choices=inputTypes, default='atom', help=f" [atom]")
   parser.add_argument("--returnIdType", choices=returnIdTypes, default='concept', help=f" [concept]")
   parser.add_argument("--srcs", default=SRCS_PREFERRED, help=f"sources to include in response [{SRCS_PREFERRED}]")
@@ -91,7 +95,7 @@ Example CUIs: C34488, C0018787, C0016644
 
   fout = open(args.ofile, "w+") if args.ofile else sys.stdout
 
-  params = umls.ReadParamFile(args.param_file)
+  params = util_yaml.ReadParamFile(args.param_file)
   if args.api_key: params['API_KEY'] = args.api_key
   if not params['API_KEY']:
     parser.error('Please specify valid API_KEY via --api_key or --param_file') 
