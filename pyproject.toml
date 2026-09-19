@@ -20,6 +20,7 @@ dependencies = [
 	"pyquery",
 	"sqlalchemy",
 	"psycopg2-binary",
+	"pymysql",
 ]
 readme = {file = "README.md", content-type = "text/markdown"}
 license = "MIT AND (Apache-2.0 OR BSD-2-Clause)"
