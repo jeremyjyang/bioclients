@@ -1,4 +1,4 @@
-anyio==4.12.1
+anyio==4.14.2
 backports.tarfile==1.2.0
 biothings_client==0.5.1
 build==1.4.4
