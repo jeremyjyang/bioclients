@@ -33,11 +33,16 @@ pip install bioclients
 
 It may not be necessary or advantageous to configure an environment for all of `bioclients` functionality. Specific modules may be supported with `venv` environments with required dependencies. Module documentation should indicate needed package dependencies. The following steps should create an environment for much of the functionality of `bioclients`.
 
- 1. `mkdir venv`
- 1. `python3 -m venv venv`
- 1. `source venv/bin/activate`
- 1. `pip install -r pip_requirements.txt`
+ 1. `mkdir -p $HOME/venv/bioclients`
+ 1. `python3 -m venv $HOME/venv/bioclients`
+ 1. `source $HOME/venv/bioclients/bin/activate`
+ 1. `pip install --upgrade pip`
  1. `pip install --upgrade bioclients`
+
+For additional functionality, more packages can be installed by:
+
+`pip install -r pip_requirements.txt`
+
 
 ### Installing from source
 
