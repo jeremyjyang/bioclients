@@ -17,9 +17,9 @@ import urllib.request,urllib.parse
 import pandas as pd
 #
 API_HOST='www.ebi.ac.uk'
-API_BASE_PATH='/gwas/rest/api'
+API_BASE_PATH_V1='/gwas/rest/api'
 API_BASE_PATH_V2='/gwas/rest/api/v2'
-BASE_URL='https://'+API_HOST+API_BASE_PATH
+BASE_URL_V1='https://'+API_HOST+API_BASE_PATH_V1
 BASE_URL_V2='https://'+API_HOST+API_BASE_PATH_V2
 #
 NCHUNK=100;
@@ -62,7 +62,7 @@ def GetMetadataV2(base_url=BASE_URL_V2, fout=None):
   return df_this
 
 ##############################################################################
-def ListStudies(base_url=BASE_URL, fout=None):
+def ListStudiesV2(base_url=BASE_URL_V1, fout=None):
   """Only simple metadata."""
   tags=[]; n_study=0; rval=None; df=None; tq=None;
   session = InitiateSession()
@@ -107,7 +107,7 @@ def ListStudies(base_url=BASE_URL, fout=None):
   return(df)
 
 ##############################################################################
-def GetStudyAssociations(ids, skip=0, nmax=None, base_url=BASE_URL, fout=None):
+def GetStudyAssociationsV1(ids, skip=0, nmax=None, base_url=BASE_URL_V1, fout=None):
   """
 Mapped genes via SNP links.
 arg = authorReportedGene
@@ -248,7 +248,7 @@ sea = SNP effect allele
   if fout is None: return(df)
 
 ##############################################################################
-def GetSnps(ids, skip=0, nmax=None, base_url=BASE_URL, fout=None):
+def GetSnpsV1(ids, skip=0, nmax=None, base_url=BASE_URL_V1, fout=None):
   """
 Input: rs_id, e.g. rs7329174
 loc = location
@@ -317,7 +317,7 @@ Input: rs_id, e.g. rs7329174
 https://www.ebi.ac.uk/gwas/rest/api/v2/single-nucleotide-polymorphisms?rs_id=rs7329174&page=0&size=20
 To do(?): Include genomic contexts
   """
-  n_snp=0; n_gene=0; n_loc=0; n_gc=0; df=None; tq=None;
+  n_snp=0; n_gene=0; n_loc=0; n_gc=0; n_out=0; df=None; tq=None;
   tags_snp=[]; tags_gc=[];
   quiet = bool(logging.getLogger().getEffectiveLevel()>15)
   session = InitiateSession()
@@ -344,7 +344,7 @@ To do(?): Include genomic contexts
       if not tags_snp:
         for key,val in snp.items():
           if type(val) not in (list, dict): tags_snp.append(key)
-      df_snp = pd.DataFrame({tag_snp:[snp[tag_snp]] for tag_snp in tags_snp})
+      df_snp = pd.DataFrame({tag_snp:[snp[tag_snp] if tag_snp in snp else ''] for tag_snp in tags_snp})
       if 'mapped_genes' in snp:
         df_snp['mapped_genes'] = [','.join(snp['mapped_genes'])]
         n_gene += len(snp['mapped_genes'])
@@ -369,19 +369,38 @@ To do(?): Include genomic contexts
         if not tags_gc:
           for key,val in gc.items():
             if type(val) not in (list, dict): tags_gc.append(key)
-        df_gc = pd.concat([df_gc, pd.DataFrame({tag_gc:[gc[tag_gc]] for tag_gc in tags_gc})])
-      n_gc += len(gcs)
-      df_snp = pd.concat([df_snp, df_gc], axis=1)
-      df_this = pd.concat([df_this, df_snp], axis=0)
+        df_gc_this = pd.DataFrame({tag_gc:[gc[tag_gc] if tag_gc in gc else ''] for tag_gc in tags_gc})
+        gene = gc['gene'] if 'gene' in gc else {}
+        gene_name = gene['gene_name'] if 'gene_name' in gene else ''
+        ensembl_gene_ids = gene['ensembl_gene_ids'] if 'ensembl_gene_ids' in gene else []
+        entrez_gene_ids = gene['entrez_gene_ids'] if 'entrez_gene_ids' in gene else []
+        location = gc['location'] if 'location' in gc else {}
+        chromosome_name = location['chromosome_name'] if 'chromosome_name' in location else ''
+        chromosome_position = location['chromosome_position'] if 'chromosome_position' in location else ''
+        chromosome_region = location['region']['name'] if 'region' in location and 'name' in location['region'] else ''
+        df_gc_this = pd.concat([df_gc_this, pd.DataFrame(
+		{
+			'gene_name':[gene_name],
+			'ensembl_gene_ids':[';'.join(ensembl_gene_ids)],
+			'entrez_gene_ids':[';'.join(entrez_gene_ids)],
+                        'chromosome_name':[chromosome_name], 
+                        'chromosome_position':[chromosome_position],
+                        'chromosome_region':[chromosome_region]
+		})], axis=1)
+        df_gc = pd.concat([df_gc, df_gc_this])
 
-    if fout: df_this.to_csv(fout, sep="\t", index=False, header=(n_snp==0), mode=('w' if n_snp==0 else 'a'))
-    if fout is None: df = pd.concat([df, df_this], axis=0)
+        n_gc+=1
+      df_this = pd.concat([df_snp, df_gc], axis=1)
+      if fout: df_this.to_csv(fout, sep="\t", index=False, header=(n_out==0), mode=('w' if n_out==0 else 'a'))
+      if fout is None: df = pd.concat([df, df_this], axis=0)
+      n_out+=df_this.shape[0]
+
     n_snp+=1
     if n_snp==nmax:
       logging.info(f"NMAX IDs reached: {nmax}")
       break
   if tq is not None: tq.close()
-  logging.info(f"SNPs: {n_snp}; mapped_genes: {n_gene}; locations: {n_loc}; genomic_contexts: {n_gc}")
+  logging.info(f"SNPs: {n_snp}; mapped_genes: {n_gene}; locations: {n_loc}; genomic_contexts: {n_gc}; n_out: {n_out}")
   if fout is None: return(df)
 
 ##############################################################################
@@ -405,7 +424,7 @@ https://www.ebi.ac.uk/gwas/rest/api/v2/single-nucleotide-polymorphisms/rs7329174
   return gcs
 
 ##############################################################################
-def SearchStudies(ids, searchtype, base_url=BASE_URL, fout=None):
+def SearchStudies(ids, searchtype, base_url=BASE_URL_V1, fout=None):
   tags=[]; n_study=0; rval=None; df=None; tq=None;
   url = base_url+'/studies/search'
   if searchtype=='gcst':
