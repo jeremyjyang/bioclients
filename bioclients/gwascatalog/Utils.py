@@ -5,7 +5,9 @@ V1:
 
 V2:
  - https://www.ebi.ac.uk/gwas/rest/api/v2/docs
- - "GWAS RESTful API V2 has been released with various enhancements & improvements over GWAS RESTful API V1. V1 is deprecated and will be retired no later than May 2026."
+ - "GWAS RESTful API V2 has been released with various enhancements & improvements over GWAS RESTful API V1."
+ - "REST API v2 is the only currently supported version of the GWAS Catalog API. V1 was retired in August 2026."
+ - https://www.ebi.ac.uk/gwas/docs/programmatic-access/rest-api/
  - https://www.ebi.ac.uk/gwas/rest/api/v2/docs/reference
 """
 ###
@@ -48,21 +50,22 @@ def GetMetadataV2(base_url=BASE_URL_V2, fout=None):
     logging.error(f"(status_code={response.status_code}): url_this: {url_this}")
     return
   try:
-    rval = response.json()
+    result = response.json()
   except Exception as e:
     logging.error(f"{str(e)}; response.text: {response.text}")
     return
-  logging.debug(json.dumps(rval, sort_keys=True, indent=2))
-  metadata = rval['_embedded']['mappingMetadatas'][0]
-  for key in metadata.keys():
-    metadata[key] = [metadata[key]]
+  logging.debug(json.dumps(result, sort_keys=True, indent=2))
+  metadata = {}
+  for key in result.keys():
+    metadata[key] = [result[key]]
   df_this = pd.DataFrame.from_dict(metadata)
+  df_this = df_this.transpose()
   if fout is not None:
-    df_this.to_csv(fout, sep="\t", index=False, header=True)
+    df_this.to_csv(fout, sep="\t", index=True, header=False)
   return df_this
 
 ##############################################################################
-def ListStudiesV2(base_url=BASE_URL_V1, fout=None):
+def ListStudiesV1(base_url=BASE_URL_V1, fout=None):
   """Only simple metadata."""
   tags=[]; n_study=0; rval=None; df=None; tq=None;
   session = InitiateSession()
@@ -103,6 +106,49 @@ def ListStudiesV2(base_url=BASE_URL_V1, fout=None):
     if 'next' not in rval['_links']: break
     elif url_this == rval['_links']['last']['href']: break
     else: url_this = rval['_links']['next']['href']
+  logging.info(f"n_study: {n_study}")
+  return(df)
+
+##############################################################################
+def ListStudiesV2(base_url=BASE_URL_V2, fout=None):
+  tags=[]; n_study=0; rval=None; df=None; tq=None;
+  session = InitiateSession()
+  url_this = base_url+f'/studies?size={NCHUNK}'
+  while True:
+    logging.debug(url_this)
+    response = session.get(url_this)
+    if (response.status_code!=200):
+      logging.error(f"(status_code={response.status_code}): url_this: {url_this}")
+      break
+    try:
+      result = response.json()
+    except Exception as e:
+      logging.error(f"{str(e)}; response.text: {response.text}")
+      break
+    if '_embedded' not in result or 'studies' not in result['_embedded']: break
+    studies = result['_embedded']['studies']
+    if studies is None: break
+    if tq is None: tq = tqdm.tqdm(total=result["page"]["totalElements"])
+    for study in studies:
+      tq.update(n=1)
+      if not tags:
+        tags = list(study.keys())
+        for tag in tags[:]:
+          if type(study[tag]) in (list, dict) and tag not in (
+                  "disease_trait",
+                  "efo_traits",
+                  "genotyping_technologies",
+                  "discovery_ancestry"
+                  ):
+            tags.remove(tag)
+            logging.info(f"Ignoring tag: {tag}")
+      df_this = pd.DataFrame({tag:[str(study[tag]) if tag in study else ''] for tag in tags})
+      if fout is not None: df_this.to_csv(fout, sep="\t", index=False, header=(n_study==0), mode=('w' if n_study==0 else 'a'))
+      else: df = pd.concat([df, df_this])
+      n_study+=1
+    if 'next' not in result['_links']: break
+    elif url_this == result['_links']['last']['href']: break
+    else: url_this = result['_links']['next']['href']
   logging.info(f"n_study: {n_study}")
   return(df)
 
@@ -195,11 +241,11 @@ sea = SNP effect allele
     if (response.status_code!=200):
       logging.error(f"(status_code={response.status_code}): url_this: {url_this}")
       continue
-    rval = response.json()
-    if not rval: continue
-    logging.debug(json.dumps(rval, sort_keys=True, indent=2))
-    if '_embedded' in rval and 'associations' in rval['_embedded']:
-      assns = rval['_embedded']['associations']
+    result = response.json()
+    if not result: continue
+    logging.debug(json.dumps(result, sort_keys=True, indent=2))
+    if '_embedded' in result and 'associations' in result['_embedded']:
+      assns = result['_embedded']['associations']
     else:
       logging.error(f'No associations for study: {id_this}')
       continue
@@ -424,7 +470,7 @@ https://www.ebi.ac.uk/gwas/rest/api/v2/single-nucleotide-polymorphisms/rs7329174
   return gcs
 
 ##############################################################################
-def SearchStudies(ids, searchtype, base_url=BASE_URL_V1, fout=None):
+def SearchStudiesV1(ids, searchtype, base_url=BASE_URL_V1, fout=None):
   tags=[]; n_study=0; rval=None; df=None; tq=None;
   url = base_url+'/studies/search'
   if searchtype=='gcst':

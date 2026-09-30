@@ -26,9 +26,10 @@ Example GCSTs: GCST004364, GCST000227;
 Example EFOIDs: EFO_0004232;
 Example SNPIDs: rs6085920, rs2273833, rs6684514, rs144991356
 """
-  parser = argparse.ArgumentParser(description='GWAS Catalog REST API (V1|V2) client', epilog=epilog)
+  parser = argparse.ArgumentParser(description='GWAS Catalog REST API V2 (V1-deprecated) client', epilog=epilog)
   searchtypes=['pubmedmid', 'gcst', 'efotrait', 'efouri', 'accessionid', 'rs']
   ops = [
+          'get_metadata',
           'get_metadata_v1',
           'get_metadata_v2',
           'list_studies',
@@ -40,9 +41,7 @@ Example SNPIDs: rs6085920, rs2273833, rs6684514, rs144991356
           'get_snps',
           'get_snps_v1',
           'get_snps_v2',
-          'search_studies',
           'search_studies_v1'
-          'search_studies_v2'
           ]
   parser.add_argument("op", choices=ops, help='operation')
   parser.add_argument("--ids", dest="ids", help="IDs, comma-separated")
@@ -58,7 +57,7 @@ Example SNPIDs: rs6085920, rs2273833, rs6684514, rs144991356
   parser.add_argument("-q", "--quiet", default=0, action="count")
   args = parser.parse_args()
 
-  base_url = 'https://'+args.api_host+args.api_base_path_v1
+  base_url_v1 = 'https://'+args.api_host+args.api_base_path_v1
   base_url_v2 = 'https://'+args.api_host+args.api_base_path_v2
 
   fout = open(args.ofile, 'w') if args.ofile else sys.stdout
@@ -79,29 +78,29 @@ Example SNPIDs: rs6085920, rs2273833, rs6684514, rs144991356
     ids = re.split(r'\s*,\s*', args.ids.strip())
   if ids: logging.info(f"Input IDs: {len(ids)}")
 
-  if args.op == 'get_metadata_v2':
+  if args.op == 'get_metadata_v2' or args.op == 'get_metadata':
     gwascatalog.GetMetadataV2(base_url_v2, fout)
 
   elif args.op == 'list_studies_v1':
-    gwascatalog.ListStudies(base_url_v1, fout)
+    gwascatalog.ListStudiesV1(base_url_v1, fout)
 
-  elif args.op == 'list_studies_v2':
-    gwascatalog.ListStudies(base_url_v2, fout)
+  elif args.op == 'list_studies_v2' or args.op == 'list_studies':
+    gwascatalog.ListStudiesV2(base_url_v2, fout)
 
   elif args.op == 'get_studyAssociations_v1':
-    gwascatalog.GetStudyAssociationsV1(ids, args.skip, args.nmax, base_url, fout)
+    gwascatalog.GetStudyAssociationsV1(ids, args.skip, args.nmax, base_url_v1, fout)
 
   elif args.op == 'get_studyAssociations_v2':
     gwascatalog.GetStudyAssociationsV2(ids, args.skip, args.nmax, base_url_v2, fout)
 
   elif args.op == 'get_snps_v1':
-    gwascatalog.GetSnpsV1(ids, args.skip, args.nmax, base_url, fout)
+    gwascatalog.GetSnpsV1(ids, args.skip, args.nmax, base_url_v1, fout)
 
   elif args.op == 'get_snps_v2' or args.op == 'get_snps':
     gwascatalog.GetSnpsV2(ids, args.skip, args.nmax, base_url_v2, fout)
 
-  elif args.op == 'search_studies':
-    gwascatalog.SearchStudies(ids, args.searchtype, base_url, fout)
+  elif args.op == 'search_studies_v1':
+    gwascatalog.SearchStudiesV1(ids, args.searchtype, base_url_v1, fout)
 
   else:
     parser.error(f"Unknown operation: {args.op}")
