@@ -26,8 +26,8 @@ Utility functions for the PubChem PUG REST API.
 import sys,os,io,re,csv,json,math,time,logging,tempfile,tqdm,tqdm.auto
 from xml.etree import ElementTree
 import requests
-from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.util.retry import Retry
+#from requests.adapters import HTTPAdapter
+#from requests.packages.urllib3.util.retry import Retry
 import urllib.request,urllib.parse
 import pandas as pd
 #
@@ -113,6 +113,7 @@ def GetCID2SID(cids, base_url=BASE_URL, fout=None):
 ### Must quote forward slash '/' in smiles.  2nd param in quote()
 ### specifies "safe" chars to not quote, '/' being the default, so specify
 ### '' for no safe chars.
+### Note that operation "synonymns" returns names AND CIDs.
 #############################################################################
 def GetSmiles2CID(smis, base_url=BASE_URL, fout=None):
   n_out=0; tq=None; df=None;
@@ -136,11 +137,50 @@ def GetSmiles2CID(smis, base_url=BASE_URL, fout=None):
     if len(cids)==0:
       logging.warning(f"CID not found for SMI: \"{smi}\"")
       continue
-    df_this = pd.DataFrame({"CID":cids, "SMILES":smi, "Name":name})
+    nicenames=[];
+    for cid in cids:
+      df_synonym = GetCID2Nicename([cid])
+      nicename = df_synonym["synonym"][0] if df_synonym.shape[1]>0 else None
+      nicenames.append(nicename)
+    df_this = pd.DataFrame({"CID":cids, "SMILES":smi, "Input_name":name, "Pubchem_synonym":nicenames})
     if fout is not None: df_this.to_csv(fout, sep="\t", header=bool(n_out==0), index=False)
     else: df = pd.concat([df, df_this])
     n_out+=len(cids)
   logging.info(f"SMIs: {len(smis)}; CIDs out: {n_out}")
+  return df
+
+#############################################################################
+def GetCID2Synonyms(ids, nmax_per_cid, base_url=BASE_URL, fout=None):
+  n_out=0; tq=None; df=None;
+  for i_id in tqdm.auto.trange(len(ids)):
+    cid = ids[i_id]
+    try:
+      response = requests.get(base_url+f"/compound/cid/{cid}/synonyms/JSON")
+    except Exception as e:
+      logging.error(f"{cid} REST request failed: {e}")
+      continue
+    if response.status_code!=200:
+      logging.error(f"status_code: {response.status_code}")
+      continue
+    result = response.json()
+    logging.debug(json.dumps(result, indent=2))
+    informations = result['InformationList']['Information'] if 'InformationList' in result and 'Information' in result['InformationList'] else []
+    synonyms=[];
+    for information in informations:
+      synonyms_this = information['Synonym'] if 'Synonym' in information else []
+      synonyms.extend(synonyms_this)
+    if len(synonyms)==0:
+      logging.warning(f"Synonyms not found for CID: {cid}")
+      continue
+    synonyms = list(set(synonyms)) # deduplicate
+    synonyms = SortCompoundNamesByNiceness(synonyms)
+    synonyms = synonyms[:nmax_per_cid] # truncate 
+
+    df_this = pd.DataFrame({ "CID":[cid for i in range(len(synonyms))], "synonym":synonyms })
+    if fout is not None: df_this.to_csv(fout, sep="\t", header=bool(n_out==0), index=False)
+    else: df = pd.concat([df, df_this])
+    n_out+=len(synonyms)
+  logging.info(f"CIDs: {len(ids)}; Synonyms out: {n_out}")
   return df
 
 #############################################################################
@@ -514,23 +554,21 @@ ns).text
 
 #############################################################################
 def GetSID2Synonyms(ids, base_url=BASE_URL, fout=None):
+#  retry_strategy = Retry(
+#	total=30,
+#	backoff_factor=2,
+#	status_forcelist=[413, 429, 500, 502, 503, 504],
+#	method_whitelist=["HEAD", "GET", "PUT", "DELETE", "OPTIONS", "TRACE"]
+#	)
+#  adapter = HTTPAdapter(max_retries=retry_strategy)
+#  session = requests.Session()
+#  session.mount("https://", adapter)
+#  session.mount("http://", adapter)
   n_out=0; df=None;
-
-  retry_strategy = Retry(
-	total=30,
-	backoff_factor=2,
-	status_forcelist=[413, 429, 500, 502, 503, 504],
-	method_whitelist=["HEAD", "GET", "PUT", "DELETE", "OPTIONS", "TRACE"]
-	)
-  adapter = HTTPAdapter(max_retries=retry_strategy)
-  session = requests.Session()
-  session.mount("https://", adapter)
-  session.mount("http://", adapter)
-
   for i_sid in range(len(ids)):
     id_this = ids[i_sid]
     url_this = f"{base_url}/substance/sid/{id_this}/synonyms/JSON"
-    response = session.get(url_this)
+    response = requests.get(url_this)
     if response.status_code!=200: #404 is normal
       logging.debug(f"Status code: {response.status_code}; url_this: {url_this}")
       continue
@@ -545,7 +583,7 @@ def GetSID2Synonyms(ids, base_url=BASE_URL, fout=None):
   return df
 
 #############################################################################
-def GetCID2Synonyms(ids, skip, nmax, nmax_per_cid, base_url=BASE_URL, fout=None):
+def GetCID2SID2Synonyms(ids, skip, nmax, nmax_per_cid, base_url=BASE_URL, fout=None):
   sids_all = set([])
   i_cid=0; n_out=0; df=None;
   for i_cid in tqdm.auto.trange(len(ids), desc="CIDs"):
@@ -576,8 +614,8 @@ def GetCID2Synonyms(ids, skip, nmax, nmax_per_cid, base_url=BASE_URL, fout=None)
   return df
 
 #############################################################################
-def GetCID2Nicename(ids, skip, nmax, base_url=BASE_URL, fout=None):
-  return GetCID2Synonyms(ids, skip, nmax, 1, base_url, fout)
+def GetCID2Nicename(ids, base_url=BASE_URL, fout=None):
+  return GetCID2Synonyms(ids, 1, base_url, fout)
 
 #############################################################################
 def GetName2SID(names, skip, nmax, base_url=BASE_URL, fout=None):
@@ -644,9 +682,9 @@ def GetName2Synonyms(names, skip, nmax, base_url=BASE_URL, fout=None):
 #############################################################################
 def NameNicenessScore(name, len_optimal=9):
   """Heuristic for human comprehensibility. In PubChem, a 'name' may be
-any ID, often not useful."""
+any ID, often not useful. Note systematic names may start with integers."""
   score=0;
-  pat_proper = re.compile(r'^[A-Z][a-z]+$')
+  pat_proper = re.compile(r'^[1-4,-]*[A-Z][a-z]+$')
   pat_text = re.compile(r'^[A-Za-z ]+$')
   if pat_proper.match(name): score+=100
   elif pat_text.match(name): score+=50

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
 Utility app for the PubChem PUG REST API.
+
+https://pubchem.ncbi.nlm.nih.gov/docs/pug-rest
 """
 ###
 import sys,os,re,argparse,time,logging
@@ -35,7 +37,7 @@ if __name__=='__main__':
   parser.add_argument("--api_base_path_view", default=pubchem.API_BASE_PATH_VIEW)
   parser.add_argument("--skip", type=int, default=0)
   parser.add_argument("--nmax", type=int, default=0)
-  parser.add_argument("--nmax_per_cid", type=int, default=20)
+  parser.add_argument("--nmax_per_cid", type=int, default=10)
   parser.add_argument("-q", "--quiet", action="store_true", help="Suppress progress notification.")
   parser.add_argument("-v", "--verbose", default=0, action="count")
   args = parser.parse_args()
@@ -55,7 +57,7 @@ if __name__=='__main__':
       ids.append(line.rstrip())
     fin.close()
   elif args.ids:
-    ids = re.split(r'[,\s]+', args.ids)
+    ids = [v.strip() for v in re.split(r',', args.ids)]
   logging.info(f"Input IDs: {len(ids)}")
 
   aids=[]
@@ -79,10 +81,10 @@ if __name__=='__main__':
     pubchem.ListSources("substance", base_url, fout)
 
   elif args.op == 'get_cid2synonyms':
-    pubchem.GetCID2Synonyms(ids, args.skip, args.nmax, args.nmax_per_cid, base_url, fout)
+    pubchem.GetCID2Synonyms(ids, args.nmax_per_cid, base_url, fout)
 
   elif args.op == 'get_cid2nicename':
-    pubchem.GetCID2Nicename(ids, args.skip, args.nmax, base_url, fout)
+    pubchem.GetCID2Nicename(ids, base_url, fout)
 
   elif args.op == 'get_cid2descriptions':
     pubchem.GetCID2Descriptions(ids, base_url, fout)

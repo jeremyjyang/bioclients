@@ -7,7 +7,40 @@ Tools for obtaining and processing PubChem data (REST, SOAP, FTP).
 ## PUG-REST
 
 * <https://pubchemdocs.ncbi.nlm.nih.gov/pug-rest>
-* <https://pubchem.ncbi.nlm.nih.gov/rest/pug>
+
+```
+python -m bioclients.pubchem.Client -h
+usage: python -m bioclients.pubchem.Client [-h] [--i IFILE] [--ids IDS] [--aids AIDS]
+                                           [--iaid IFILE_AID] [--o OFILE]
+                                           [--api_host API_HOST]
+                                           [--api_base_path API_BASE_PATH]
+                                           [--api_base_path_view API_BASE_PATH_VIEW]
+                                           [--skip SKIP] [--nmax NMAX]
+                                           [--nmax_per_cid NMAX_PER_CID] [-q] [-v]
+                                           {list_sources_substance,list_sources_assay,get_name2sid,get_name2cid,get_name2synonyms,get_smi2cid,get_cid2smiles,get_cid2sdf,get_cid2properties,get_cid2inchi,get_cid2descriptions,get_cid2synonyms,get_cid2sid,get_cid2assaysummary,get_cid2nicename,get_sid2cid,get_sid2sdf,get_sid2assaysummary,get_assayname,get_assaydescriptions,get_assaysubstances,get_assaysubstanceresults,get_compoundview,get_substanceview,get_assayview}
+
+PubChem PUG REST client
+
+positional arguments:
+  {list_sources_substance,list_sources_assay,get_name2sid,get_name2cid,get_name2synonyms,get_smi2cid,get_cid2smiles,get_cid2sdf,get_cid2properties,get_cid2inchi,get_cid2descriptions,get_cid2synonyms,get_cid2sid,get_cid2assaysummary,get_cid2nicename,get_sid2cid,get_sid2sdf,get_sid2assaysummary,get_assayname,get_assaydescriptions,get_assaysubstances,get_assaysubstanceresults,get_compoundview,get_substanceview,get_assayview}
+                        OPERATION
+
+options:
+  -h, --help            show this help message and exit
+  --i IFILE             input IDs file (CID|SID|SMILES|name)
+  --ids IDS             input IDs (CID|SID|SMILES|name) (comma-separated)
+  --aids AIDS           input AIDs (comma-separated)
+  --iaid IFILE_AID      input AIDs file
+  --o OFILE             output (usually TSV)
+  --api_host API_HOST
+  --api_base_path API_BASE_PATH
+  --api_base_path_view API_BASE_PATH_VIEW
+  --skip SKIP
+  --nmax NMAX
+  --nmax_per_cid NMAX_PER_CID
+  -q, --quiet           Suppress progress notification.
+  -v, --verbose
+```
 
 ```
 python3 -m bioclients.pubchem.Client --name remdesivir name2sid
