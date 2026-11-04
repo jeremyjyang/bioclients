@@ -7,8 +7,9 @@ V2:
  - https://www.ebi.ac.uk/gwas/rest/api/v2/docs
  - "GWAS RESTful API V2 has been released with various enhancements & improvements over GWAS RESTful API V1."
  - "REST API v2 is the only currently supported version of the GWAS Catalog API. V1 was retired in August 2026."
- - https://www.ebi.ac.uk/gwas/docs/programmatic-access/rest-api/
  - https://www.ebi.ac.uk/gwas/rest/api/v2/docs/reference
+ - https://www.ebi.ac.uk/gwas/docs/programmatic-access/rest-api/
+    - "The API allows up to 100 requests per minute and 15 requests per second per IP address. Requests above either limit are blocked and receive an HTTP 429 Too Many Requests response. If your client will send many requests, such as when it crawls the full API, set a descriptive User-Agent header. For example, use MyResearchProject/1.0 (contact: name@example.org)."
 """
 ###
 import sys,os,re,json,time,logging,tqdm
@@ -357,7 +358,7 @@ gc = genomicContext
   if fout is None: return(df)
 
 ##############################################################################
-def GetSnpsV2(ids, skip=0, nmax=None, base_url=BASE_URL_V2, fout=None):
+def GetSnpsV2(ids, skip=0, nmax=None, user_agent=None, base_url=BASE_URL_V2, fout=None):
   """
 Input: rs_id, e.g. rs7329174
 https://www.ebi.ac.uk/gwas/rest/api/v2/single-nucleotide-polymorphisms?rs_id=rs7329174&page=0&size=20
@@ -368,13 +369,14 @@ To do(?): Include genomic contexts
   quiet = bool(logging.getLogger().getEffectiveLevel()>15)
   session = InitiateSession()
   url = base_url+'/single-nucleotide-polymorphisms'
+  headers = {"User-Agent": user_agent} if user_agent else {}
   if skip>0: logging.info(f"SKIP IDs skipped: {skip}")
   for id_this in ids[skip:]:
     if not quiet and tq is None: tq = tqdm.tqdm(total=len(ids)-skip)
     if tq is not None: tq.update()
     url_this = url+f"?rs_id={id_this}"
     try:
-      response = session.get(url_this)
+      response = session.get(url_this, headers=headers)
     except Exception as e:
       logging.error(f"Failed for SNP:{id_this}; URL:{url_this}; {str(e)}")
       continue

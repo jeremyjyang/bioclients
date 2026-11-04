@@ -53,6 +53,7 @@ Example SNPIDs: rs6085920, rs2273833, rs6684514, rs144991356
   parser.add_argument("--api_host", default=gwascatalog.API_HOST)
   parser.add_argument("--api_base_path_v1", default=gwascatalog.API_BASE_PATH_V1)
   parser.add_argument("--api_base_path_v2", default=gwascatalog.API_BASE_PATH_V2)
+  parser.add_argument("--api_user_agent", help="HTTP header User-Agent: ***, e.g. 'MyApp/1.0 (contact: foobar@unm.edu)'")
   parser.add_argument("-v", "--verbose", default=0, action="count")
   parser.add_argument("-q", "--quiet", default=0, action="count")
   args = parser.parse_args()
@@ -97,7 +98,7 @@ Example SNPIDs: rs6085920, rs2273833, rs6684514, rs144991356
     gwascatalog.GetSnpsV1(ids, args.skip, args.nmax, base_url_v1, fout)
 
   elif args.op == 'get_snps_v2' or args.op == 'get_snps':
-    gwascatalog.GetSnpsV2(ids, args.skip, args.nmax, base_url_v2, fout)
+    gwascatalog.GetSnpsV2(ids, args.skip, args.nmax, args.api_user_agent, base_url_v2, fout)
 
   elif args.op == 'search_studies_v1':
     gwascatalog.SearchStudiesV1(ids, args.searchtype, base_url_v1, fout)
