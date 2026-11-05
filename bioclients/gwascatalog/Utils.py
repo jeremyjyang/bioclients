@@ -362,7 +362,6 @@ def GetSnpsV2(ids, skip=0, nmax=None, user_agent=None, base_url=BASE_URL_V2, fou
   """
 Input: rs_id, e.g. rs7329174
 https://www.ebi.ac.uk/gwas/rest/api/v2/single-nucleotide-polymorphisms?rs_id=rs7329174&page=0&size=20
-To do(?): Include genomic contexts
   """
   n_snp=0; n_gene=0; n_loc=0; n_gc=0; n_out=0; df=None; tq=None;
   tags_snp=[]; tags_gc=[];
@@ -447,6 +446,83 @@ To do(?): Include genomic contexts
     if n_snp==nmax:
       logging.info(f"NMAX IDs reached: {nmax}")
       break
+  if tq is not None: tq.close()
+  logging.info(f"SNPs: {n_snp}; mapped_genes: {n_gene}; locations: {n_loc}; genomic_contexts: {n_gc}; n_out: {n_out}")
+  if fout is None: return(df)
+
+##############################################################################
+def ListSnpsV2(user_agent=None, base_url=BASE_URL_V2, fout=None):
+  """
+https://www.ebi.ac.uk/gwas/rest/api/v2/single-nucleotide-polymorphisms?page=0&size=20
+Include genomic contexts? (slow)
+  """
+  n_snp=0; n_gene=0; n_loc=0; n_gc=0; n_out=0; df=None; tq=None;
+  tags_snp=[]; tags_gc=[];
+  quiet = bool(logging.getLogger().getEffectiveLevel()>15)
+  session = InitiateSession()
+  url = base_url+'/single-nucleotide-polymorphisms'
+  headers = {"User-Agent": user_agent} if user_agent else {}
+  i_page=0; url_next=None;
+  while True:
+    url_this = f"{url}?page={i_page}&size={NCHUNK}"
+    try:
+      response = session.get(url_this, headers=headers)
+    except Exception as e:
+      logging.error(f"Failed for URL:{url_this}; {str(e)}")
+      continue
+    if response.status_code!=200:
+      logging.error(f"(status_code={response.status_code}): url_this: {url_this}")
+      continue
+
+    rval = response.json()
+    logging.debug(json.dumps(rval, sort_keys=True, indent=2))
+
+    page = rval['page'] if 'page' in rval else {}
+    totalPages = page['totalPages'] if 'totalPages' in page else None
+    totalElements = page['totalElements'] if 'totalElements' in page else None
+    size = page['size'] if 'size' in page else None
+    if not quiet and tq is None: tq = tqdm.tqdm(total=totalElements)
+    if tq is not None: tq.update(size)
+    links = rval['_links'] if '_links' in rval else {}
+    url_next = links['next'] if 'next' in links else None
+
+    snps = rval['_embedded']['snps'] if '_embedded' in rval and 'snps' in rval['_embedded'] else []
+
+    df_this=None;
+    for snp in snps:
+      if not tags_snp:
+        for key,val in snp.items():
+          if type(val) not in (list, dict): tags_snp.append(key)
+      df_snp = pd.DataFrame({tag_snp:[snp[tag_snp] if tag_snp in snp else ''] for tag_snp in tags_snp})
+      if 'mapped_genes' in snp:
+        df_snp['mapped_genes'] = [','.join(snp['mapped_genes'])]
+        n_gene += len(snp['mapped_genes'])
+      links = snp['_links'] if '_links' in snp else {}
+      gcs_url = links['genomic_contexts']['href'] if 'genomic_contexts' in links and 'href' in links['genomic_contexts'] else None
+      df_snp['genomic_contexts_url'] = [gcs_url]
+
+      locs = snp['locations'] if 'locations' in snp else []
+      locs_strs = []
+      for loc in locs:
+        cn = loc['chromosome_name'] if 'chromosome_name' in loc else ''
+        cp = loc['chromosome_position'] if 'chromosome_position' in loc else ''
+        cr = loc['region']['name'] if 'region' in loc and 'name' in loc['region'] else ''
+        locs_strs.append(f"{cn}|{cp}|{cr}")
+      df_snp['locations'] = [','.join(locs_strs)]
+      n_loc += len(locs)
+
+      #df_this = pd.concat([df_snp, df_gc], axis=1)
+      df_this = df_snp
+
+      if fout: df_this.to_csv(fout, sep="\t", index=False, header=(n_out==0), mode=('w' if n_out==0 else 'a'))
+      if fout is None: df = pd.concat([df, df_this], axis=0)
+      n_out+=df_this.shape[0]
+
+    i_page+=1
+    if i_page>=totalPages or url_next is None:
+      break
+
+    n_snp+=1
   if tq is not None: tq.close()
   logging.info(f"SNPs: {n_snp}; mapped_genes: {n_gene}; locations: {n_loc}; genomic_contexts: {n_gc}; n_out: {n_out}")
   if fout is None: return(df)
