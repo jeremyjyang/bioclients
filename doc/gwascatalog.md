@@ -34,18 +34,16 @@ python3 -m bioclients.gwascatalog.Client get_snps_v2 --ids "rs6085920,rs2273833,
 
 ```
 python -m bioclients.gwascatalog.Client -h
-usage: Client.py [-h] [--ids IDS]
-                 [--searchtype {pubmedmid,gcst,efotrait,efouri,accessionid,rs}]
-                 [--i IFILE] [--o OFILE] [--skip SKIP] [--nmax NMAX]
-                 [--api_host API_HOST]
-                 [--api_base_path_v1 API_BASE_PATH_V1]
-                 [--api_base_path_v2 API_BASE_PATH_V2] [-v] [-q]
-                 {get_metadata,get_metadata_v1,get_metadata_v2,list_studies,list_studies_v1,list_studies_v2,get_studyAssociations,get_studyAssociations_v1,get_studyAssociations_v2,get_snps,get_snps_v1,get_snps_v2,search_studies_v1}
+usage: Client.py [-h] [--ids IDS] [--searchtype {pubmedmid,gcst,efotrait,efouri,accessionid,rs}]
+                 [--i IFILE] [--o OFILE] [--skip SKIP] [--nmax NMAX] [--api_host API_HOST]
+                 [--api_base_path_v1 API_BASE_PATH_V1] [--api_base_path_v2 API_BASE_PATH_V2]
+                 [--api_user_agent API_USER_AGENT] [-v] [-q]
+                 {get_metadata,get_metadata_v1,get_metadata_v2,list_studies,list_studies_v1,list_studies_v2,get_studyAssociations,get_studyAssociations_v1,get_studyAssociations_v2,get_snps,get_snps_v1,get_snps_v2,list_snps,get_genomic_contexts,search_studies_v1}
 
 GWAS Catalog REST API V2 (V1-deprecated) client
 
 positional arguments:
-  {get_metadata,get_metadata_v1,get_metadata_v2,list_studies,list_studies_v1,list_studies_v2,get_studyAssociations,get_studyAssociations_v1,get_studyAssociations_v2,get_snps,get_snps_v1,get_snps_v2,search_studies_v1}
+  {get_metadata,get_metadata_v1,get_metadata_v2,list_studies,list_studies_v1,list_studies_v2,get_studyAssociations,get_studyAssociations_v1,get_studyAssociations_v2,get_snps,get_snps_v1,get_snps_v2,list_snps,get_genomic_contexts,search_studies_v1}
                         operation
 
 options:
@@ -60,10 +58,11 @@ options:
   --api_host API_HOST
   --api_base_path_v1 API_BASE_PATH_V1
   --api_base_path_v2 API_BASE_PATH_V2
+  --api_user_agent API_USER_AGENT
+                        HTTP header User-Agent: ***, e.g. 'MyApp/1.0 (contact: foobar@unm.edu)'
   -v, --verbose
   -q, --quiet
 
-Example PMIDs: 28530673; Example GCSTs: GCST004364, GCST000227;
-Example EFOIDs: EFO_0004232; Example SNPIDs: rs6085920, rs2273833,
-rs6684514, rs144991356
+Example PMIDs: 28530673; Example GCSTs: GCST004364, GCST000227; Example EFOIDs: EFO_0004232; Example
+SNPIDs: rs6085920, rs2273833, rs6684514, rs144991356
 ```

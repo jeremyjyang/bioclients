@@ -410,7 +410,7 @@ https://www.ebi.ac.uk/gwas/rest/api/v2/single-nucleotide-polymorphisms?rs_id=rs7
       n_loc += len(locs)
 
       rs_id = snp['rs_id'] if 'rs_id' in snp else None
-      gcs = GetGenomicContextsV2(rs_id, session)
+      gcs = RSID2GCs(rs_id, session)
       df_gc = None
       for gc in gcs:
         if not tags_gc:
@@ -528,7 +528,7 @@ Include genomic contexts? (slow)
   if fout is None: return(df)
 
 ##############################################################################
-def GetGenomicContextsV2(rs_id, session):
+def RSID2GCs(rs_id, session):
   """
 https://www.ebi.ac.uk/gwas/rest/api/v2/single-nucleotide-polymorphisms/rs7329174/genomic-contexts?sort=distance&direction=asc
   """
@@ -546,6 +546,78 @@ https://www.ebi.ac.uk/gwas/rest/api/v2/single-nucleotide-polymorphisms/rs7329174
   logging.debug(json.dumps(rval, sort_keys=True, indent=2))
   gcs = rval['_embedded']['genomic_contexts'] if '_embedded' in rval and 'genomic_contexts' in rval['_embedded'] else []
   return gcs
+
+##############################################################################
+def GetGenomicContextsV2(ids, skip=0, nmax=None, user_agent=None, base_url=BASE_URL_V2, fout=None):
+  """
+Input: rs_id, e.g. rs7329174
+https://www.ebi.ac.uk/gwas/rest/api/v2/single-nucleotide-polymorphisms/rs7329174/genomic-contexts?sort=distance&direction=asc
+  """
+  n_snp=0; n_gene=0; n_loc=0; n_gc=0; n_out=0; df=None; tq=None;
+  tags_gc=[];
+  quiet = bool(logging.getLogger().getEffectiveLevel()>15)
+  session = InitiateSession()
+  url = base_url+'/single-nucleotide-polymorphisms'
+  headers = {"User-Agent": user_agent} if user_agent else {}
+  if skip>0: logging.info(f"SKIP IDs skipped: {skip}")
+  for id_this in ids[skip:]:
+    if not quiet and tq is None: tq = tqdm.tqdm(total=len(ids)-skip)
+    if tq is not None: tq.update()
+    url_this = f"{url}/{id_this}/genomic-contexts?sort=distance&direction=asc"
+    try:
+      response = session.get(url_this, headers=headers)
+    except Exception as e:
+      logging.error(f"Failed for SNP:{id_this}; URL:{url_this}; {str(e)}")
+      continue
+    if response.status_code!=200:
+      logging.error(f"(status_code={response.status_code}): url_this: {url_this}")
+      continue
+
+    rval = response.json()
+    logging.debug(json.dumps(rval, sort_keys=True, indent=2))
+
+    gcs_this = rval['_embedded']['genomic_contexts'] if '_embedded' in rval and 'genomic_contexts' in rval['_embedded'] else []
+
+    df_this = None
+    for gc in gcs_this:
+      if not tags_gc:
+        for key,val in gc.items():
+          if type(val) not in (list, dict): tags_gc.append(key)
+      df_gc_this = pd.DataFrame({tag_gc:[gc[tag_gc] if tag_gc in gc else ''] for tag_gc in tags_gc})
+      gene = gc['gene'] if 'gene' in gc else {}
+      gene_name = gene['gene_name'] if 'gene_name' in gene else ''
+      ensembl_gene_ids = gene['ensembl_gene_ids'] if 'ensembl_gene_ids' in gene else []
+      entrez_gene_ids = gene['entrez_gene_ids'] if 'entrez_gene_ids' in gene else []
+      location = gc['location'] if 'location' in gc else {}
+      chromosome_name = location['chromosome_name'] if 'chromosome_name' in location else ''
+      chromosome_position = location['chromosome_position'] if 'chromosome_position' in location else ''
+      chromosome_region = location['region']['name'] if 'region' in location and 'name' in location['region'] else ''
+      df_gc_this = pd.DataFrame(
+		{
+			'gene_name':[gene_name],
+			'ensembl_gene_ids':[';'.join(ensembl_gene_ids)],
+			'entrez_gene_ids':[';'.join(entrez_gene_ids)],
+                        'chromosome_name':[chromosome_name], 
+                        'chromosome_position':[chromosome_position],
+                        'chromosome_region':[chromosome_region]
+		})
+      df_gc = pd.concat([df_gc, df_gc_this])
+
+      n_gc+=1
+    df_this = pd.concat([df_this, df_gc], axis=1)
+
+    if fout: df_this.to_csv(fout, sep="\t", index=False, header=(n_out==0), mode=('w' if n_out==0 else 'a'))
+    if fout is None: df = pd.concat([df, df_this], axis=0)
+    n_out+=df_this.shape[0]
+
+    n_snp+=1
+    if n_snp==nmax:
+      logging.info(f"NMAX IDs reached: {nmax}")
+      break
+  if tq is not None: tq.close()
+  logging.info(f"SNPs: {n_snp}; mapped_genes: {n_gene}; locations: {n_loc}; genomic_contexts: {n_gc}; n_out: {n_out}")
+  if fout is None: return(df)
+
 
 ##############################################################################
 def SearchStudiesV1(ids, searchtype, base_url=BASE_URL_V1, fout=None):

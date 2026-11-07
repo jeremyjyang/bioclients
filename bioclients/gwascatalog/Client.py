@@ -42,6 +42,7 @@ Example SNPIDs: rs6085920, rs2273833, rs6684514, rs144991356
           'get_snps_v1',
           'get_snps_v2',
           'list_snps',
+          'get_genomic_contexts',
           'search_studies_v1'
           ]
   parser.add_argument("op", choices=ops, help='operation')
@@ -103,6 +104,9 @@ Example SNPIDs: rs6085920, rs2273833, rs6684514, rs144991356
 
   elif args.op == 'list_snps_v2' or args.op == 'list_snps':
     gwascatalog.ListSnpsV2(args.api_user_agent, base_url_v2, fout)
+
+  elif args.op == 'get_genomic_contexts_v2' or args.op == 'get_genomic_contexts':
+    gwascatalog.GetGenomicContextsV2(ids, args.skip, args.nmax, args.api_user_agent, base_url_v2, fout)
 
   elif args.op == 'search_studies_v1':
     gwascatalog.SearchStudiesV1(ids, args.searchtype, base_url_v1, fout)
