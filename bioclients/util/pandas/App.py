@@ -31,6 +31,7 @@ if __name__=='__main__':
   parser.add_argument("--compression", choices=compressions)
   parser.add_argument("--csv", action="store_true", help="delimiter is comma")
   parser.add_argument("--tsv", action="store_true", help="delimiter is tab")
+  parser.add_argument("--quotechar_in", default='"', help="Input quote char")
   parser.add_argument("--clean_coltags", action="store_true", help="trim and replace whitespace, punctuation")
   parser.add_argument("--on_bad_lines", choices=["error", "warn", "skip"], default="warn")
   parser.add_argument("--merge_how", choices=["left", "right", "outer", "inner", "cross"], default="inner")
@@ -83,7 +84,7 @@ if __name__=='__main__':
   search_rels = [rel.strip() for rel in re.split(r',', args.search_rels.strip())] if (args.search_rels is not None) else None
   search_typs = [typ.strip() for typ in re.split(r',', args.search_typs.strip())] if (args.search_typs is not None) else None
 
-  df = pd.read_csv(args.ifile, sep=delim, header=(None if args.noheader_in else 0), compression=compression, on_bad_lines=args.on_bad_lines, nrows=(1 if args.op in ('showcols', 'list_columns') else args.nrows), skiprows=args.skiprows)
+  df = pd.read_csv(args.ifile, sep=delim, quotechar=args.quotechar_in, header=(None if args.noheader_in else 0), compression=compression, on_bad_lines=args.on_bad_lines, nrows=(1 if args.op in ('showcols', 'list_columns') else args.nrows), skiprows=args.skiprows)
 
   if args.clean_coltags: util_pandas.CleanColtags(df)
     
