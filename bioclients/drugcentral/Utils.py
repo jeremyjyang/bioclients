@@ -52,7 +52,7 @@ def ListColumns(dbcon, dbschema="public", fout=None):
 #############################################################################
 def ListTables(dbcon, dbschema="public", fout=None):
   '''Listing the tables.'''
-  sql = (f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{dbschema}'")
+  sql = (f"SELECT table_schema,table_name FROM information_schema.tables WHERE table_schema = '{dbschema}'")
   df = pd.read_sql(sql, dbcon)
   if fout: df.to_csv(fout, sep="\t", index=False)
   logging.info(f"n_out: {df.shape[0]}")
@@ -62,10 +62,10 @@ def ListTables(dbcon, dbschema="public", fout=None):
 def ListTablesRowCounts(dbcon, dbschema="public", fout=None):
   '''Listing the table rowcounts.'''
   df=None;
-  sql1 = (f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{dbschema}'")
+  sql1 = (f"SELECT table_schema,table_name FROM information_schema.tables WHERE table_schema = '{dbschema}'")
   df1 = pd.read_sql(sql1, dbcon)
   for tname in df1.table_name:
-    sql2 = (f"SELECT COUNT(*) AS rowcount FROM {dbschema}.{tname}")
+    sql2 = (f"SELECT COUNT(*) AS rowcount FROM {dbschema}.\"{tname}\"")
     df_this = pd.read_sql(sql2, dbcon)
     df_this["schema"] = dbschema
     df_this["table"] = tname
